@@ -381,7 +381,10 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
     </div>
 
     <div class="glass-card rounded-2xl p-4 sm:p-5">
-      <h3 class="text-ocean-900 font-bold mb-4">订单列表</h3>
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-ocean-900 font-bold">订单列表</h3>
+        <button onclick="clearCompletedOrders()" class="text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-100">清空已完成</button>
+      </div>
       <div id="orders-list" class="space-y-3"></div>
     </div>
   </section>
@@ -1437,6 +1440,7 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
             <button onclick="toggleOrderStatus('${order.id}', '${order.status}')" class="text-xs px-3 py-2 rounded-xl ${order.status === 'pending' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}">
               ${order.status === 'pending' ? '标记完成' : '重置待制作'}
             </button>
+            <button onclick="deleteOrder('${order.id}')" class="text-xs px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100">删除</button>
           </div>
         </div>
       `;
@@ -1448,6 +1452,23 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
     const newStatus = currentStatus === 'pending' ? 'done' : 'pending';
     await db.from('orders').update({ status: newStatus }).eq('id', id);
     loadOrders();
+    showToast(newStatus === 'done' ? '已标记完成' : '已重置为待制作', 'success');
+  }
+
+  async function deleteOrder(id) {
+    if (!confirm('确定删除此订单？如顾客已下单，删除后需补偿激活码。')) return;
+    const { error } = await db.from('orders').delete().eq('id', id);
+    if (error) return showToast('删除失败：' + error.message, 'error');
+    loadOrders();
+    showToast('订单已删除', 'success');
+  }
+
+  async function clearCompletedOrders() {
+    if (!confirm('确定清空所有已完成的订单？此操作不可恢复。')) return;
+    const { error } = await db.from('orders').delete().eq('status', 'done');
+    if (error) return showToast('清空失败：' + error.message, 'error');
+    loadOrders();
+    showToast('已清空所有已完成订单', 'success');
   }
 
   // ========== 打印功能 ==========
