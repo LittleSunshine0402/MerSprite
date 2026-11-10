@@ -1,0 +1,1638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MerSprite Tea 鱼精灵奶茶</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+// 动态加载外部库，带备用 CDN 容错
+function loadScript(src, fallback) {
+  const s = document.createElement('script');
+  s.src = src;
+  s.onerror = function() {
+    if (fallback) {
+      const f = document.createElement('script');
+      f.src = fallback;
+      document.head.appendChild(f);
+    }
+  };
+  document.head.appendChild(s);
+}
+loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+           'https://unpkg.com/@supabase/supabase-js@2');
+loadScript('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js',
+           'https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js');
+loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js',
+           'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js');
+</script>
+<script>
+  // 管理员常量（先定义，不依赖任何外部库）
+  const ADMIN_ACCOUNT = "Yangguang123";
+  const ADMIN_PASSWORD = "Chenzijing_MK";
+  const ADMIN_NAME = "鱼精灵";
+
+  // Supabase 初始化（等待库加载完成，带 CDN 容错）
+  const SUPABASE_URL = "https://bwejgisyxupcsbfoizqv.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ3ZWpnaXN5eHVwY3NiZm9penF2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMzA4NjIsImV4cCI6MjEwOTgwNjg2Mn0.SqZLSogzLRRAYSnWp8wSp6zEmWOgoWfNE5anTJJLztw";
+  let db = null;
+  function initSupabase() {
+    try {
+      if (window.supabase) {
+        db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        if (window._onDbReady) window._onDbReady();
+      } else {
+        setTimeout(initSupabase, 300);
+      }
+    } catch (e) {
+      console.warn("Supabase 初始化失败:", e);
+    }
+  }
+  initSupabase();
+
+  // Tailwind 配置（容错）
+  try {
+    if (window.tailwind) {
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              ocean: {
+                50:  "#f1f8f7",
+                100: "#dff0ee",
+                200: "#b9dfda",
+                300: "#89c7bf",
+                400: "#58aba2",
+                500: "#2f8b82",
+                600: "#23746c",
+                700: "#1c5d57",
+                800: "#174a45",
+                900: "#0f3330"
+              }
+            },
+            fontFamily: {
+              sans: ["PingFang SC", "Microsoft YaHei", "sans-serif"]
+            },
+            boxShadow: {
+              soft: "0 10px 30px -12px rgba(28,93,87,0.25)",
+              card: "0 6px 20px -8px rgba(47,139,130,0.35)"
+            }
+          }
+        }
+      }
+    }
+  } catch (e) { console.warn("tailwind config 失败:", e); }
+</script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(circle at 10% 0%, rgba(137,199,191,0.25), transparent 28%),
+      radial-gradient(circle at 90% 10%, rgba(47,139,130,0.18), transparent 32%),
+      linear-gradient(180deg,#f4faf9 0%,#e8f5f2 100%);
+    color: #0f3330;
+  }
+
+  .logo-mark {
+    background: linear-gradient(135deg,#23746c,#174a45);
+    box-shadow: 0 10px 24px -10px rgba(23,74,69,0.45);
+  }
+
+  .glass-card {
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 18px 40px -20px rgba(23,74,69,0.25);
+  }
+
+  .menu-card {
+    background: #fff;
+    border: 1px solid rgba(185,223,218,0.45);
+    transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease;
+  }
+  .menu-card:hover {
+    transform: translateY(-6px);
+    border-color: rgba(47,139,130,0.35);
+    box-shadow: 0 20px 40px -20px rgba(23,74,69,0.45);
+  }
+
+  .chip {
+    transition: all .25s ease;
+  }
+  .chip:active {
+    transform: scale(0.96);
+  }
+
+  .input-field {
+    background: #fff;
+    border: 1px solid #d6ebe8;
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  }
+  .input-field:focus {
+    outline: none;
+    border-color: #2f8b82;
+    box-shadow: 0 0 0 4px rgba(47,139,130,0.14);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg,#2f8b82,#1c5d57);
+    box-shadow: 0 10px 24px -12px rgba(28,93,87,0.55);
+    transition: transform .25s ease, box-shadow .25s ease, filter .25s ease;
+  }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-primary:active { transform: translateY(1px); }
+
+  .btn-ghost {
+    background: #fff;
+    border: 1px solid #d6ebe8;
+    transition: background .25s ease, border-color .25s ease, transform .25s ease;
+  }
+  .btn-ghost:hover { background: #f2f9f7; border-color: #b9dfda; }
+
+  .fade-in { animation: fadeIn .4s ease both; }
+  .slide-up { animation: slideUp .4s cubic-bezier(.2,.8,.2,1) both; }
+  .pop-in { animation: popIn .3s cubic-bezier(.2,1.4,.4,1) both; }
+  .scale-in { animation: scaleIn .35s cubic-bezier(.2,1.3,.4,1) both; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(.96); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(.92); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  .modal-mask {
+    background: rgba(15,51,48,0.42);
+    backdrop-filter: blur(6px);
+  }
+
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { scrollbar-width: none; }
+
+  .tab-active {
+    background: linear-gradient(135deg,#2f8b82,#1c5d57);
+    color: #fff;
+    box-shadow: 0 8px 20px -12px rgba(28,93,87,0.55);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .cart-badge {
+    animation: popIn .35s cubic-bezier(.2,1.6,.4,1) both;
+  }
+
+  /* Toast 提示 */
+  #toast-container {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 9999; display: flex; flex-direction: column; gap: 10px;
+    align-items: center; pointer-events: none;
+  }
+  .toast {
+    background: rgba(15,51,48,0.92); color: #fff;
+    padding: 12px 24px; border-radius: 999px; font-size: 14px;
+    box-shadow: 0 10px 30px -10px rgba(0,0,0,0.3);
+    backdrop-filter: blur(10px);
+    animation: toastIn .35s cubic-bezier(.2,1.3,.4,1) both;
+    max-width: 90vw; text-align: center;
+  }
+  .toast.toast-success { background: rgba(35,116,108,0.95); }
+  .toast.toast-error { background: rgba(190,60,60,0.95); }
+  .toast.toast-out { animation: toastOut .3s ease both; }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-20px) scale(.9); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes toastOut {
+    from { opacity: 1; transform: translateY(0) scale(1); }
+    to { opacity: 0; transform: translateY(-20px) scale(.9); }
+  }
+
+  /* 打印区域：屏幕外定位，打印时切回原位 */
+  #print-wrapper {
+    position: absolute; left: -9999px; top: 0; width: 100%;
+  }
+
+  @media print {
+    body * { visibility: hidden !important; }
+    #print-wrapper, #print-wrapper * { visibility: visible !important; }
+    #print-wrapper { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; }
+    .receipt { width: 58mm; font-size: 12px; line-height: 1.5; }
+    .sticker { width: 60mm; height: 40mm; font-size: 11px; }
+    @page { margin: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- ============ 顶部导航栏 ============ -->
+<header class="sticky top-0 z-40 backdrop-blur-xl bg-white/70 border-b border-ocean-100">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="logo-mark w-11 h-11 rounded-2xl flex items-center justify-center overflow-hidden">
+        <img src="https://aka.doubaocdn.com/s/4o0ocu5NlB" alt="MerSprite Tea Logo" class="w-full h-full object-cover" />
+      </div>
+      <div class="leading-tight">
+        <p class="text-ocean-800 font-bold text-[15px] sm:text-lg">MerSprite Tea</p>
+        <p class="text-ocean-500 text-[11px] sm:text-xs">鱼精灵奶茶</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 sm:gap-3">
+      <div class="hidden sm:flex flex-col items-end leading-tight">
+        <span class="text-ocean-500 text-xs">剩余杯数</span>
+        <span class="text-ocean-800 font-bold text-lg" id="cups-count">0</span>
+      </div>
+
+      <button onclick="openCart()" class="relative btn-ghost text-ocean-700 text-sm px-3 sm:px-4 py-2 rounded-xl">
+        🛒 购物车
+        <span id="cart-badge" class="hidden absolute -top-1 -right-1 bg-ocean-500 text-white text-[10px] px-1.5 py-0.5 rounded-full cart-badge">0</span>
+      </button>
+
+      <button onclick="openCodeModal()" class="btn-primary text-white text-sm px-3 sm:px-4 py-2 rounded-xl font-medium">
+        激活码
+      </button>
+
+      <button onclick="openAdminLogin()" class="btn-ghost text-ocean-700 text-xs sm:text-sm px-3 sm:px-4 py-2 rounded-xl">
+        后台
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 数据库状态提示条 ============ -->
+<div id="db-status" class="hidden bg-red-50 border-b border-red-200 text-red-700 text-xs px-4 py-2 text-center"></div>
+
+<!-- ============ 用户端主界面 ============ -->
+<main id="user-app" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 fade-in">
+
+  <section class="glass-card rounded-3xl p-6 sm:p-10 mb-8 overflow-hidden relative">
+    <div class="absolute -right-10 -top-10 w-56 h-56 rounded-full bg-ocean-200/40 blur-3xl"></div>
+    <div class="absolute -left-10 -bottom-16 w-60 h-60 rounded-full bg-ocean-300/30 blur-3xl"></div>
+
+    <div class="relative grid lg:grid-cols-2 gap-6 items-center">
+      <div>
+        <span class="badge bg-ocean-100 text-ocean-700 mb-3">MerSprite Tea · 鱼精灵奶茶</span>
+        <h1 class="hero-title text-ocean-900 font-extrabold leading-tight mt-2">
+          清新一杯，<br class="sm:hidden" />来自鱼精灵的奶茶邀请
+        </h1>
+        <p class="text-ocean-600 mt-3 text-sm sm:text-base max-w-md">
+          浏览全部饮品，加入购物车，选择糖度与冰度，输入激活码即可下单。
+        </p>
+
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 bg-white rounded-2xl px-4 py-2.5 border border-ocean-100 shadow-soft">
+            <span class="text-ocean-500 text-sm">我的额度</span>
+            <span class="text-ocean-800 font-bold text-xl" id="cups-count-inline">0</span>
+            <span class="text-ocean-500 text-sm">杯</span>
+          </div>
+          <button onclick="openCodeModal()" class="btn-primary text-white rounded-2xl px-5 py-2.5 text-sm font-medium">
+            + 激活码兑换
+          </button>
+          <button onclick="openScanModal()" class="btn-ghost text-ocean-700 text-sm px-4 py-2.5 rounded-xl">
+            📷 扫码激活
+          </button>
+        </div>
+      </div>
+
+      <div class="hidden lg:flex justify-center">
+        <div class="relative">
+          <div class="w-64 h-64 rounded-full bg-gradient-to-br from-ocean-200 to-ocean-400/40 blur-2xl absolute -inset-6"></div>
+          <div class="relative w-56 h-56 rounded-full logo-mark flex items-center justify-center overflow-hidden shadow-card">
+            <img src="https://aka.doubaocdn.com/s/4o0ocu5NlB" alt="MerSprite Tea Logo" class="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-ocean-900 font-bold text-lg sm:text-xl">饮品菜单</h2>
+    <div class="flex gap-2 overflow-x-auto scrollbar-hide">
+      <button class="category-tab chip tab-active px-4 py-1.5 rounded-full text-sm whitespace-nowrap" data-category="全部">全部</button>
+      <button class="category-tab chip btn-ghost px-4 py-1.5 rounded-full text-sm whitespace-nowrap" data-category="果茶">果茶</button>
+      <button class="category-tab chip btn-ghost px-4 py-1.5 rounded-full text-sm whitespace-nowrap" data-category="咖啡">咖啡</button>
+      <button class="category-tab chip btn-ghost px-4 py-1.5 rounded-full text-sm whitespace-nowrap" data-category="奶茶">奶茶</button>
+    </div>
+  </div>
+
+  <div id="drinks-list" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5"></div>
+</main>
+
+<!-- ============ 管理员后台 ============ -->
+<main id="admin-app" class="hidden max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 fade-in">
+  <div class="flex items-center justify-between mb-5">
+    <div>
+      <h1 class="text-ocean-900 font-bold text-xl sm:text-2xl">管理员后台</h1>
+      <p class="text-ocean-500 text-xs sm:text-sm mt-0.5">MerSprite Tea 鱼精灵奶茶 · 订单、菜单、激活码管理</p>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="enterCashierMode()" class="btn-primary text-white text-sm px-4 py-2 rounded-xl">收银模式</button>
+      <button onclick="openRedeemScan()" class="btn-ghost text-ocean-700 text-sm px-4 py-2 rounded-xl">核销</button>
+      <button onclick="adminLogout()" class="btn-ghost text-ocean-700 text-sm px-4 py-2 rounded-xl">退出登录</button>
+    </div>
+  </div>
+
+  <div class="flex gap-2 mb-5 overflow-x-auto scrollbar-hide">
+    <button class="admin-tab chip tab-active px-4 py-2 rounded-full text-sm whitespace-nowrap" data-tab="orders">订单管理</button>
+    <button class="admin-tab chip btn-ghost px-4 py-2 rounded-full text-sm whitespace-nowrap" data-tab="drinks">菜单管理</button>
+    <button class="admin-tab chip btn-ghost px-4 py-2 rounded-full text-sm whitespace-nowrap" data-tab="codes">激活码管理</button>
+  </div>
+
+  <!-- 订单管理 -->
+  <section id="tab-orders" class="admin-content">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+      <div class="glass-card rounded-2xl p-4">
+        <p class="text-ocean-500 text-xs">今日订单</p>
+        <p class="text-ocean-900 font-bold text-2xl mt-1" id="stat-total">0</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4">
+        <p class="text-orange-600 text-xs">待制作</p>
+        <p class="text-orange-700 font-bold text-2xl mt-1" id="stat-pending">0</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4">
+        <p class="text-green-600 text-xs">已完成</p>
+        <p class="text-green-700 font-bold text-2xl mt-1" id="stat-done">0</p>
+      </div>
+      <div class="glass-card rounded-2xl p-4">
+        <p class="text-ocean-500 text-xs">已用激活码</p>
+        <p class="text-ocean-900 font-bold text-2xl mt-1" id="stat-codes-used">0</p>
+      </div>
+    </div>
+
+    <div class="glass-card rounded-2xl p-4 sm:p-5">
+      <h3 class="text-ocean-900 font-bold mb-4">订单列表</h3>
+      <div id="orders-list" class="space-y-3"></div>
+    </div>
+  </section>
+
+  <!-- 菜单管理 -->
+  <section id="tab-drinks" class="admin-content hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-ocean-900 font-bold">饮品列表</h3>
+      <button onclick="openDrinkEditModal()" class="btn-primary text-white text-sm px-4 py-2 rounded-xl">+ 新增饮品</button>
+    </div>
+    <div id="admin-drinks-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+  </section>
+
+  <!-- 激活码管理 -->
+  <section id="tab-codes" class="admin-content hidden">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-ocean-900 font-bold">激活码列表</h3>
+      <button onclick="openBatchCodeModal()" class="btn-primary text-white text-sm px-4 py-2 rounded-xl">批量生成</button>
+    </div>
+
+    <div class="glass-card rounded-2xl p-3 sm:p-4 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-ocean-600 border-b border-ocean-100">
+            <th class="pb-3 pr-4">激活码</th>
+            <th class="pb-3 pr-4">杯数</th>
+            <th class="pb-3 pr-4">状态</th>
+            <th class="pb-3 pr-4">核销时间</th>
+            <th class="pb-3">操作</th>
+          </tr>
+        </thead>
+        <tbody id="codes-list"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- ============ 底部信息 ============ -->
+<footer class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 text-center">
+  <p class="text-ocean-500 text-xs">© MerSprite Tea 鱼精灵奶茶 · 校内轻量点单系统</p>
+</footer>
+
+<!-- ============ 激活码弹窗 ============ -->
+<div id="code-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 slide-up shadow-card">
+    <div class="flex items-center justify-between mb-2">
+      <h3 class="text-ocean-900 font-bold text-lg">激活码兑换</h3>
+      <button onclick="closeCodeModal()" class="text-ocean-400 hover:text-ocean-700 text-xl leading-none">×</button>
+    </div>
+    <p class="text-ocean-600 text-sm mb-4">输入激活码，额度将自动累加。每下一单扣减 1 杯。</p>
+
+    <div class="flex gap-2">
+      <input id="code-input" type="text" placeholder="请输入激活码" class="input-field flex-1 rounded-xl px-4 py-3 text-sm uppercase" />
+      <button onclick="redeemCode()" class="btn-primary text-white rounded-xl px-5 text-sm font-medium">兑换</button>
+    </div>
+
+    <div class="mt-4 flex gap-2">
+      <button onclick="openScanModal()" class="btn-ghost flex-1 rounded-xl py-2.5 text-sm text-ocean-700">📷 扫码激活</button>
+    </div>
+
+    <div class="mt-4 p-3 rounded-2xl bg-ocean-50 border border-ocean-100 flex justify-between items-center">
+      <span class="text-ocean-600 text-sm">当前剩余额度</span>
+      <span class="text-ocean-900 font-bold text-lg" id="modal-cups-count">0</span>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 扫码激活弹窗 ============ -->
+<div id="scan-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-md p-6 sm:p-7 slide-up shadow-card">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-ocean-900 font-bold text-lg">扫码激活</h3>
+      <button onclick="closeScanModal()" class="text-ocean-400 hover:text-ocean-700 text-xl leading-none">×</button>
+    </div>
+    <p class="text-ocean-600 text-sm mb-4">请将二维码对准摄像头，自动识别并激活。也可以手动输入：</p>
+    <div id="reader" class="w-full rounded-2xl overflow-hidden bg-black mb-3"></div>
+    <div class="flex gap-2 mb-2">
+      <input id="scan-manual-input" type="text" placeholder="手动输入激活码" class="input-field flex-1 rounded-xl px-4 py-2.5 text-sm uppercase" />
+      <button onclick="manualScanRedeem()" class="btn-primary text-white rounded-xl px-4 text-sm">确认</button>
+    </div>
+    <p id="scan-status" class="text-center text-xs text-ocean-600 mt-1">正在启动摄像头…</p>
+  </div>
+</div>
+
+<!-- ============ 饮品详情/规格选择弹窗 ============ -->
+<div id="drink-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden slide-up shadow-card">
+    <div class="relative">
+      <img id="modal-drink-img" src="" class="w-full h-48 sm:h-56 object-cover bg-ocean-50" />
+      <button onclick="closeDrinkModal()" class="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/90 text-ocean-700 flex items-center justify-center shadow-soft">✕</button>
+      <div class="absolute left-4 bottom-4 flex gap-2">
+        <span id="modal-drink-category" class="badge bg-white/90 text-ocean-700"></span>
+      </div>
+    </div>
+
+    <div class="p-5 sm:p-6">
+      <h3 id="modal-drink-name" class="text-ocean-900 font-bold text-xl sm:text-2xl"></h3>
+      <p id="modal-drink-desc" class="text-ocean-600 text-sm mt-1.5"></p>
+
+      <div class="mt-5">
+        <p class="text-sm text-ocean-700 font-medium mb-2">糖度</p>
+        <div id="sugar-options" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <div class="mt-4" id="ice-section">
+        <p class="text-sm text-ocean-700 font-medium mb-2">冰度</p>
+        <div id="ice-options" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <button onclick="addToCart()" class="btn-primary w-full mt-5 text-white rounded-xl py-3 font-medium">
+        加入购物车
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 购物车弹窗 ============ -->
+<div id="cart-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden slide-up shadow-card flex flex-col max-h-[86vh]">
+    <div class="p-5 border-b border-ocean-100 flex items-center justify-between">
+      <h3 class="text-ocean-900 font-bold text-lg">购物车</h3>
+      <button onclick="closeCart()" class="text-ocean-400 hover:text-ocean-700 text-xl leading-none">×</button>
+    </div>
+
+    <div id="cart-list" class="p-5 space-y-3 overflow-y-auto flex-1"></div>
+
+    <div class="p-5 border-t border-ocean-100 bg-ocean-50/40">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-ocean-700 text-sm">商品数量</span>
+        <span class="text-ocean-900 font-bold" id="cart-total-count">0</span>
+      </div>
+      <div class="flex items-center justify-between mb-3 p-2 rounded-xl bg-orange-50 border border-orange-100">
+        <span class="text-orange-700 text-sm">本次预计消耗</span>
+        <span class="text-orange-800 font-bold" id="cart-estimate-cups">0 杯额度</span>
+      </div>
+      <button onclick="openOrderConfirm()" class="btn-primary w-full text-white rounded-xl py-3 font-medium">
+        去确认订单
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 订单确认页 ============ -->
+<div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden slide-up shadow-card flex flex-col max-h-[86vh]">
+    <div class="p-5 border-b border-ocean-100 flex items-center justify-between">
+      <h3 class="text-ocean-900 font-bold text-lg">确认订单</h3>
+      <button onclick="closeConfirm()" class="text-ocean-400 hover:text-ocean-700 text-xl leading-none">×</button>
+    </div>
+
+    <div class="p-5 space-y-4 overflow-y-auto flex-1">
+      <div>
+        <label class="text-sm text-ocean-700 font-medium">取单名称</label>
+        <input id="confirm-seat" type="text" placeholder="例：林同学 / 高二3班" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+
+      <div>
+        <label class="text-sm text-ocean-700 font-medium">期望取单时间</label>
+        <input id="confirm-pickup" type="text" placeholder="例：午休12:30" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+
+      <div>
+        <label class="text-sm text-ocean-700 font-medium">备注</label>
+        <textarea id="confirm-remark" rows="2" placeholder="例如：不要珍珠、少糖等" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm"></textarea>
+      </div>
+
+      <div class="glass-card rounded-2xl p-4">
+        <p class="text-ocean-700 text-sm font-medium mb-2">订单明细</p>
+        <div id="confirm-order-items" class="space-y-2 text-sm text-ocean-800"></div>
+      </div>
+    </div>
+
+    <div class="p-5 border-t border-ocean-100 bg-ocean-50/40">
+      <button id="confirm-submit-btn" onclick="submitCartOrders()" class="btn-primary w-full text-white rounded-xl py-3 font-medium">
+        提交订单
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 管理员登录弹窗 ============ -->
+<div id="admin-login-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 slide-up shadow-card">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="logo-mark w-11 h-11 rounded-2xl flex items-center justify-center overflow-hidden">
+        <img src="https://aka.doubaocdn.com/s/4o0ocu5NlB" alt="Logo" class="w-full h-full object-cover" />
+      </div>
+      <div>
+        <h3 class="text-ocean-900 font-bold text-lg">管理员登录</h3>
+        <p class="text-ocean-500 text-xs">MerSprite Tea 鱼精灵奶茶</p>
+      </div>
+    </div>
+
+    <input id="admin-account" type="text" placeholder="账号" class="input-field w-full rounded-xl px-4 py-3 text-sm mb-3" />
+    <input id="admin-pwd" type="password" placeholder="密码" class="input-field w-full rounded-xl px-4 py-3 text-sm mb-4" />
+
+    <div class="flex gap-3">
+      <button onclick="closeAdminLogin()" class="btn-ghost flex-1 rounded-xl py-2.5 text-sm text-ocean-700">取消</button>
+      <button onclick="adminLogin()" class="btn-primary flex-1 rounded-xl py-2.5 text-sm text-white font-medium">登录</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 批量生成激活码弹窗 ============ -->
+<div id="batch-code-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-md p-6 sm:p-7 slide-up shadow-card">
+    <h3 class="text-ocean-900 font-bold text-lg mb-4">批量生成激活码</h3>
+
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="text-sm text-ocean-700 font-medium">生成数量</label>
+        <input id="batch-count" type="number" value="10" min="1" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+      <div>
+        <label class="text-sm text-ocean-700 font-medium">单码杯数</label>
+        <input id="batch-cups" type="number" value="1" min="1" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+    </div>
+
+    <div class="mt-4 p-3 rounded-2xl bg-ocean-50 border border-ocean-100 text-xs text-ocean-700">
+      激活码为 10 位随机数字+英文，一次性使用。生成后请妥善保管。
+    </div>
+
+    <div class="flex gap-3 mt-5">
+      <button onclick="closeBatchCodeModal()" class="btn-ghost flex-1 rounded-xl py-2.5 text-sm text-ocean-700">取消</button>
+      <button onclick="batchGenerateCodes()" class="btn-primary flex-1 rounded-xl py-2.5 text-sm text-white font-medium">生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 激活码二维码弹窗 ============ -->
+<div id="qrcode-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-sm p-6 sm:p-7 slide-up shadow-card text-center">
+    <h3 class="text-ocean-900 font-bold text-lg mb-1">激活码二维码</h3>
+    <p class="text-ocean-600 text-sm mb-4" id="qrcode-code-text"></p>
+    <div id="qrcode-box" class="flex justify-center my-4"></div>
+    <button onclick="closeQrcodeModal()" class="btn-ghost w-full rounded-xl py-2.5 text-sm text-ocean-700">关闭</button>
+  </div>
+</div>
+
+<!-- ============ 新增/编辑饮品弹窗 ============ -->
+<div id="drink-edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-lg overflow-hidden slide-up shadow-card">
+    <div class="p-5 sm:p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="drink-edit-title" class="text-ocean-900 font-bold text-lg">新增饮品</h3>
+        <button onclick="closeDrinkEditModal()" class="text-ocean-400 hover:text-ocean-700 text-xl leading-none">×</button>
+      </div>
+
+      <input id="edit-drink-id" type="hidden" />
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-sm text-ocean-700 font-medium">饮品名称</label>
+          <input id="edit-drink-name" type="text" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+        </div>
+        <div>
+          <label class="text-sm text-ocean-700 font-medium">分类</label>
+          <select id="edit-drink-category" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm">
+            <option value="果茶">果茶</option>
+            <option value="咖啡">咖啡</option>
+            <option value="奶茶">奶茶</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <label class="text-sm text-ocean-700 font-medium">饮品图片</label>
+        <input id="edit-drink-image" type="file" accept="image/*" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+        <div id="image-preview" class="mt-2 hidden">
+          <img id="preview-img" class="w-full h-32 object-cover rounded-xl bg-ocean-50" />
+        </div>
+      </div>
+
+      <div class="mt-3">
+        <label class="text-sm text-ocean-700 font-medium">糖度选项（逗号分隔）</label>
+        <input id="edit-sugar-options" type="text" value="无糖,三分糖,五分糖,七分糖,全糖" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+
+      <div class="mt-3 flex items-center justify-between p-3 rounded-2xl bg-ocean-50 border border-ocean-100">
+        <label class="text-sm text-ocean-700 font-medium">启用冰度选择</label>
+        <input id="edit-ice-enabled" type="checkbox" checked class="w-5 h-5 accent-ocean-600" />
+      </div>
+
+      <div class="mt-3">
+        <label class="text-sm text-ocean-700 font-medium">冰度选项（逗号分隔）</label>
+        <input id="edit-ice-options" type="text" value="常温,少冰,正常冰" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
+      </div>
+
+      <div class="mt-3">
+        <label class="text-sm text-ocean-700 font-medium">饮品介绍</label>
+        <textarea id="edit-drink-desc" rows="2" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm"></textarea>
+      </div>
+
+      <div class="flex gap-3 mt-5">
+        <button onclick="closeDrinkEditModal()" class="btn-ghost flex-1 rounded-xl py-2.5 text-sm text-ocean-700">取消</button>
+        <button onclick="saveDrink()" class="btn-primary flex-1 rounded-xl py-2.5 text-sm text-white font-medium">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 打印区域 ============ -->
+<div id="print-wrapper">
+  <div id="receipt-template" class="print-area receipt">
+    <div class="text-center mb-2">
+      <p class="font-bold text-lg">MerSprite Tea</p>
+      <p class="text-xs">鱼精灵奶茶</p>
+    </div>
+    <div class="border-t border-dashed border-gray-400 my-2"></div>
+    <p class="text-xl font-bold text-center my-3" id="print-drink-name"></p>
+    <div class="text-left space-y-1 text-xs">
+      <p>订单号：<span id="print-order-no"></span></p>
+      <p>规格：<span id="print-spec"></span></p>
+      <p>下单时间：<span id="print-order-time"></span></p>
+      <p>取单时间：<span id="print-pickup-time"></span></p>
+      <p>取单名称：<span id="print-seat"></span></p>
+      <p>备注：<span id="print-remark"></span></p>
+      <p>激活码：<span id="print-code"></span></p>
+    </div>
+    <div class="border-t border-dashed border-gray-400 my-2"></div>
+    <p class="text-center text-xs">感谢惠顾 · MerSprite Tea</p>
+  </div>
+
+  <div id="sticker-template" class="print-area sticker">
+    <p class="text-2xl font-bold text-center mb-1" id="sticker-drink-name"></p>
+    <p class="text-center text-sm mb-1" id="sticker-spec"></p>
+    <p class="text-xs text-center mb-0.5"><span id="sticker-seat"></span> | <span id="sticker-pickup"></span></p>
+    <p class="text-xs text-center text-gray-500" id="sticker-remark"></p>
+    <p class="text-xs text-center mt-1">码:<span id="sticker-code"></span> · MerSprite Tea</p>
+  </div>
+</div>
+
+<script>
+  // ========== 全局状态 ==========
+  let currentDrink = null;
+  let selectedSugar = '';
+  let selectedIce = '';
+  let currentCategory = '全部';
+  let isAdmin = false;
+  let isCashierMode = false; // 收银模式
+  let userCups = parseInt(localStorage.getItem('user_cups') || '0');
+  let redeemedCodes = JSON.parse(localStorage.getItem('redeemed_codes') || '[]');
+  let cart = JSON.parse(localStorage.getItem('cart') || '[]');
+  let html5QrCode = null;
+
+  // ========== Toast 提示 ==========
+  function showToast(msg, type) {
+    const container = document.getElementById('toast-container');
+    const t = document.createElement('div');
+    t.className = 'toast' + (type ? ' toast-' + type : '');
+    t.textContent = msg;
+    container.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('toast-out');
+      setTimeout(() => t.remove(), 300);
+    }, 2200);
+  }
+  // 兼容：把 alert 替换成 toast
+  function alert(msg) { showToast(msg); }
+
+  // ========== 初始化 ==========
+  function showDbError(msg) {
+    const el = document.getElementById('db-status');
+    el.textContent = '⚠️ ' + msg + '（请确认 Supabase 里已执行建表 SQL）';
+    el.classList.remove('hidden');
+  }
+  function hideDbStatus() {
+    document.getElementById('db-status').classList.add('hidden');
+  }
+
+  window.onload = () => {
+    updateCupsDisplay();
+    updateCartBadge();
+    initCategoryTabs();
+    initAdminTabs();
+    initImagePreview();
+    // 恢复管理员登录状态
+    if (sessionStorage.getItem('adminLoggedIn') === '1') {
+      isAdmin = true;
+      document.getElementById('user-app').classList.add('hidden');
+      document.getElementById('admin-app').classList.remove('hidden');
+    }
+    // 等 db 就绪后加载数据
+    function loadWhenReady() {
+      if (db) {
+        loadDrinks();
+        loadOrders();
+        loadCodes();
+      } else {
+        setTimeout(loadWhenReady, 300);
+      }
+    }
+    loadWhenReady();
+  };
+
+  // ========== Logo ==========
+  function applyLogo() {
+    const logoUrl = "https://aka.doubaocdn.com/s/4o0ocu5NlB";
+    document.querySelectorAll("img[alt='MerSprite Tea Logo'], img[alt='Logo']").forEach(img => {
+      img.src = logoUrl;
+    });
+  }
+  applyLogo();
+
+  // ========== 饮品菜单 ==========
+  async function loadDrinks() {
+    if (!db) { showDbError("Supabase 库未加载，请检查网络后刷新页面"); return; }
+    const { data, error } = await db.from('drinks').select('*').order('created_at', { ascending: false });
+    if (error) { showDbError('饮品表加载失败：' + error.message); return console.error(error); }
+    hideDbStatus();
+
+    const list = document.getElementById('drinks-list');
+    list.innerHTML = '';
+    // 顾客端只显示上架商品
+    const activeData = data.filter(d => d.is_active !== false);
+    const filtered = currentCategory === '全部' ? activeData : activeData.filter(d => d.category === currentCategory);
+
+    filtered.forEach(drink => {
+      const card = document.createElement('div');
+      card.className = 'menu-card rounded-2xl overflow-hidden cursor-pointer pop-in';
+      card.onclick = () => openDrinkModal(drink);
+      card.innerHTML = `
+        <div class="aspect-square bg-ocean-50 flex items-center justify-center overflow-hidden">
+          ${drink.image ? `<img src="${drink.image}" class="w-full h-full object-cover" />` : `<span class="text-4xl">🥤</span>`}
+        </div>
+        <div class="p-3 sm:p-4">
+          <div class="flex items-start justify-between gap-2">
+            <h4 class="text-ocean-900 font-semibold text-sm sm:text-base leading-tight">${drink.name}</h4>
+            <span class="badge bg-ocean-50 text-ocean-700 flex-shrink-0">${drink.category}</span>
+          </div>
+          <p class="text-ocean-500 text-xs mt-1 line-clamp-2 min-h-[32px]">${drink.description || '清新茶饮，今日推荐。'}</p>
+          <div class="mt-3 flex items-center justify-between">
+            <span class="text-xs text-ocean-600">
+              ${drink.ice_enabled ? '可选冰度' : '热饮推荐'}
+            </span>
+            <span class="text-xs text-ocean-700 font-medium">加入选择 →</span>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+
+    const adminList = document.getElementById('admin-drinks-list');
+    adminList.innerHTML = '';
+    data.forEach(drink => {
+      const isOff = drink.is_active === false;
+      const card = document.createElement('div');
+      card.className = 'glass-card rounded-2xl p-4 flex gap-4' + (isOff ? ' opacity-60' : '');
+      card.innerHTML = `
+        <div class="w-24 h-24 rounded-xl bg-ocean-50 flex-shrink-0 overflow-hidden">
+          ${drink.image ? `<img src="${drink.image}" class="w-full h-full object-cover" />` : `<span class="text-3xl">🥤</span>`}
+        </div>
+        <div class="flex-1 min-w-0">
+          <h4 class="text-ocean-900 font-semibold">${drink.name} ${isOff ? '<span class="badge bg-gray-100 text-gray-500 ml-1">已下架</span>' : ''}</h4>
+          <p class="text-xs text-ocean-500 mt-0.5">${drink.category} · ${drink.ice_enabled ? '冰度开启' : '冰度关闭'}</p>
+          <p class="text-xs text-ocean-600 mt-1 line-clamp-2">${drink.description || ''}</p>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <button onclick="editDrink('${drink.id}')" class="text-xs px-3 py-1.5 rounded-xl bg-ocean-50 text-ocean-700">编辑</button>
+            <button onclick="toggleDrinkActive('${drink.id}', ${isOff})" class="text-xs px-3 py-1.5 rounded-xl ${isOff ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}">
+              ${isOff ? '上架' : '下架'}
+            </button>
+            <button onclick="deleteDrink('${drink.id}')" class="text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600">删除</button>
+          </div>
+        </div>
+      `;
+      adminList.appendChild(card);
+    });
+  }
+
+  function initCategoryTabs() {
+    document.querySelectorAll('.category-tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.category-tab').forEach(t => {
+          t.classList.remove('tab-active');
+          t.classList.add('btn-ghost');
+        });
+        tab.classList.add('tab-active');
+        tab.classList.remove('btn-ghost');
+        currentCategory = tab.dataset.category;
+        loadDrinks();
+      };
+    });
+  }
+
+  // ========== 激活码 ==========
+  function openCodeModal() {
+    document.getElementById('code-modal').classList.remove('hidden');
+    document.getElementById('code-modal').classList.add('flex');
+    document.getElementById('code-input').value = '';
+    document.getElementById('code-input').focus();
+    document.getElementById('modal-cups-count').textContent = userCups;
+  }
+
+  function closeCodeModal() {
+    document.getElementById('code-modal').classList.add('hidden');
+    document.getElementById('code-modal').classList.remove('flex');
+  }
+
+  async function redeemCode(code) {
+    const inputCode = (code || document.getElementById('code-input').value || '').trim().toUpperCase();
+    if (!inputCode) return alert('请输入激活码');
+    if (redeemedCodes.includes(inputCode)) return alert('该激活码已被你使用过');
+
+    const { data, error } = await db.from('codes').select('*').eq('code', inputCode).single();
+    if (error || !data) return alert('激活码无效');
+    if (data.status === 'used') return alert('该激活码已被使用');
+
+    await db.from('codes').update({
+      status: 'used',
+      used_at: new Date().toISOString()
+    }).eq('id', data.id);
+
+    userCups += data.cups;
+    localStorage.setItem('user_cups', userCups);
+    redeemedCodes.push(inputCode);
+    localStorage.setItem('redeemed_codes', JSON.stringify(redeemedCodes));
+    updateCupsDisplay();
+    document.getElementById('modal-cups-count').textContent = userCups;
+    closeCodeModal();
+    alert(`兑换成功！获得 ${data.cups} 杯额度，当前剩余 ${userCups} 杯`);
+    loadCodes();
+  }
+
+  function updateCupsDisplay() {
+    document.getElementById('cups-count').textContent = userCups;
+    document.getElementById('cups-count-inline').textContent = userCups;
+  }
+
+  function generateCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = '';
+    for (let i = 0; i < 10; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  }
+
+  async function batchGenerateCodes() {
+    const count = parseInt(document.getElementById('batch-count').value);
+    const cups = parseInt(document.getElementById('batch-cups').value);
+    if (count < 1 || count > 100) return alert('数量请在 1-100 之间');
+
+    const codes = [];
+    for (let i = 0; i < count; i++) {
+      codes.push({ code: generateCode(), cups: cups });
+    }
+
+    const { error } = await db.from('codes').insert(codes);
+    if (error) return alert('生成失败：' + error.message);
+
+    closeBatchCodeModal();
+    loadCodes();
+    alert(`成功生成 ${count} 个激活码`);
+  }
+
+  async function loadCodes() {
+    if (!db) return;
+    const { data, error } = await db.from('codes').select('*').order('created_at', { ascending: false });
+    if (error) { showDbError('激活码表加载失败：' + error.message); return; }
+
+    const tbody = document.getElementById('codes-list');
+    tbody.innerHTML = '';
+    data.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = "border-b border-ocean-50";
+      tr.innerHTML = `
+        <td class="py-3 pr-4 font-mono text-ocean-800">${item.code}</td>
+        <td class="py-3 pr-4">${item.cups}</td>
+        <td class="py-3 pr-4">
+          <span class="badge ${item.status === 'unused' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}">
+            ${item.status === 'unused' ? '未核销' : '已核销'}
+          </span>
+        </td>
+        <td class="py-3 pr-4 text-ocean-600 text-xs">
+          ${item.used_at ? new Date(item.used_at).toLocaleString() : '-'}
+        </td>
+        <td class="py-3">
+          <button onclick="showCodeQrcode('${item.code}')" class="text-xs px-3 py-1.5 rounded-xl bg-ocean-50 text-ocean-700">生成二维码</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function openBatchCodeModal() {
+    document.getElementById('batch-code-modal').classList.remove('hidden');
+    document.getElementById('batch-code-modal').classList.add('flex');
+  }
+
+  function closeBatchCodeModal() {
+    document.getElementById('batch-code-modal').classList.add('hidden');
+    document.getElementById('batch-code-modal').classList.remove('flex');
+  }
+
+  // ========== 二维码生成 ==========
+  function showCodeQrcode(code) {
+    document.getElementById('qrcode-modal').classList.remove('hidden');
+    document.getElementById('qrcode-modal').classList.add('flex');
+    document.getElementById('qrcode-code-text').textContent = `激活码：${code}`;
+    document.getElementById('qrcode-box').innerHTML = '';
+
+    new QRCode(document.getElementById('qrcode-box'), {
+      text: code,
+      width: 200,
+      height: 200,
+      colorDark: "#0f3330",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.H
+    });
+  }
+
+  function closeQrcodeModal() {
+    document.getElementById('qrcode-modal').classList.add('hidden');
+    document.getElementById('qrcode-modal').classList.remove('flex');
+  }
+
+  // ========== 扫码激活 ==========
+  function openScanModal() {
+    document.getElementById('scan-modal').classList.remove('hidden');
+    document.getElementById('scan-modal').classList.add('flex');
+    document.getElementById('scan-status').textContent = '正在启动摄像头…';
+
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      async (decodedText) => {
+        if (html5QrCode) {
+          await html5QrCode.stop();
+          html5QrCode = null;
+        }
+        document.getElementById('scan-status').textContent = `识别成功：${decodedText}`;
+        setTimeout(() => {
+          closeScanModal();
+          redeemCode(decodedText);
+        }, 500);
+      },
+      () => {}
+    ).catch(err => {
+      document.getElementById('scan-status').textContent = '摄像头启动失败，请检查权限。';
+      console.error(err);
+    });
+  }
+
+  function closeScanModal() {
+    try {
+      if (html5QrCode) {
+        html5QrCode.stop().catch(() => {});
+        html5QrCode = null;
+      }
+    } catch(e) {}
+    document.getElementById('scan-modal').classList.add('hidden');
+    document.getElementById('scan-modal').classList.remove('flex');
+  }
+
+  function manualScanRedeem() {
+    const code = document.getElementById('scan-manual-input').value.trim().toUpperCase();
+    if (!code) return showToast('请输入激活码', 'error');
+    closeScanModal();
+    redeemCode(code);
+  }
+
+  // ========== 饮品详情 / 加入购物车 ==========
+  function openDrinkModal(drink) {
+    currentDrink = drink;
+    selectedSugar = '';
+    selectedIce = '';
+
+    document.getElementById('modal-drink-name').textContent = drink.name;
+    document.getElementById('modal-drink-desc').textContent = drink.description || '今日推荐饮品';
+    document.getElementById('modal-drink-img').src = drink.image || '';
+    document.getElementById('modal-drink-category').textContent = drink.category;
+
+    const sugarBox = document.getElementById('sugar-options');
+    sugarBox.innerHTML = '';
+    drink.sugar_options.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'chip btn-ghost px-4 py-2 rounded-xl text-sm text-ocean-700';
+      btn.textContent = opt;
+      btn.onclick = () => {
+        document.querySelectorAll('#sugar-options .chip').forEach(b => {
+          b.classList.remove('tab-active');
+          b.classList.add('btn-ghost');
+        });
+        btn.classList.add('tab-active');
+        btn.classList.remove('btn-ghost');
+        selectedSugar = opt;
+      };
+      sugarBox.appendChild(btn);
+    });
+
+    const iceSection = document.getElementById('ice-section');
+    if (drink.ice_enabled) {
+      iceSection.classList.remove('hidden');
+      const iceBox = document.getElementById('ice-options');
+      iceBox.innerHTML = '';
+      drink.ice_options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'chip btn-ghost px-4 py-2 rounded-xl text-sm text-ocean-700';
+        btn.textContent = opt;
+        btn.onclick = () => {
+          document.querySelectorAll('#ice-options .chip').forEach(b => {
+            b.classList.remove('tab-active');
+            b.classList.add('btn-ghost');
+          });
+          btn.classList.add('tab-active');
+          btn.classList.remove('btn-ghost');
+          selectedIce = opt;
+        };
+        iceBox.appendChild(btn);
+      });
+    } else {
+      iceSection.classList.add('hidden');
+      selectedIce = '无冰选项';
+    }
+
+    document.getElementById('drink-modal').classList.remove('hidden');
+    document.getElementById('drink-modal').classList.add('flex');
+  }
+
+  function closeDrinkModal() {
+    document.getElementById('drink-modal').classList.add('hidden');
+    document.getElementById('drink-modal').classList.remove('flex');
+    currentDrink = null;
+  }
+
+  function addToCart() {
+    if (!currentDrink) return;
+    if (!selectedSugar) return alert('请选择糖度');
+    if (currentDrink.ice_enabled && !selectedIce) return alert('请选择冰度');
+
+    const item = {
+      id: Date.now() + Math.random(),
+      drink_id: currentDrink.id,
+      drink_name: currentDrink.name,
+      image: currentDrink.image || '',
+      sugar: selectedSugar,
+      ice: selectedIce
+    };
+
+    cart.push(item);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartBadge();
+    closeDrinkModal();
+    alert('已加入购物车');
+  }
+
+  // ========== 购物车 ==========
+  function openCart() {
+    document.getElementById('cart-modal').classList.remove('hidden');
+    document.getElementById('cart-modal').classList.add('flex');
+    renderCart();
+  }
+
+  function closeCart() {
+    document.getElementById('cart-modal').classList.add('hidden');
+    document.getElementById('cart-modal').classList.remove('flex');
+  }
+
+  function renderCart() {
+    const list = document.getElementById('cart-list');
+    list.innerHTML = '';
+
+    if (cart.length === 0) {
+      list.innerHTML = '<p class="text-center text-ocean-500 text-sm py-6">购物车还是空的</p>';
+    }
+
+    cart.forEach((item, index) => {
+      const row = document.createElement('div');
+      row.className = 'flex items-center gap-3 p-3 rounded-2xl bg-ocean-50/60 border border-ocean-100';
+      row.innerHTML = `
+        <div class="w-16 h-16 rounded-xl bg-white flex-shrink-0 overflow-hidden">
+          ${item.image ? `<img src="${item.image}" class="w-full h-full object-cover" />` : `<span class="text-2xl">🥤</span>`}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-ocean-900 font-medium text-sm">${item.drink_name}</p>
+          <p class="text-xs text-ocean-600 mt-0.5">${item.sugar} / ${item.ice}</p>
+        </div>
+        <button onclick="removeCartItem(${index})" class="text-xs px-3 py-1.5 rounded-xl bg-red-50 text-red-600">移除</button>
+      `;
+      list.appendChild(row);
+    });
+
+    document.getElementById('cart-total-count').textContent = cart.length;
+    const estEl = document.getElementById('cart-estimate-cups');
+    if (estEl) estEl.textContent = cart.length + ' 杯额度';
+  }
+
+  function removeCartItem(index) {
+    cart.splice(index, 1);
+    localStorage.setItem('cart', JSON.stringify(cart));
+    updateCartBadge();
+    renderCart();
+  }
+
+  function updateCartBadge() {
+    const badge = document.getElementById('cart-badge');
+    if (cart.length > 0) {
+      badge.classList.remove('hidden');
+      badge.textContent = cart.length;
+    } else {
+      badge.classList.add('hidden');
+    }
+  }
+
+  // ========== 订单编号生成 ==========
+  async function getTodayOrderCount() {
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    const { count } = await db.from('orders').select('id', { count: 'exact', head: true }).gte('created_at', todayStart);
+    return count || 0;
+  }
+
+  function formatOrderNo(seq) {
+    const now = new Date();
+    const ymd = now.getFullYear().toString() +
+      String(now.getMonth() + 1).padStart(2, '0') +
+      String(now.getDate()).padStart(2, '0');
+    return `MST${ymd}${String(seq).padStart(4, '0')}`;
+  }
+
+  // ========== 订单确认页 ==========
+  function openOrderConfirm() {
+    if (cart.length === 0) return showToast('购物车是空的', 'error');
+    if (!isCashierMode && userCups <= 0) return showToast('请先激活激活码', 'error');
+
+    closeCart();
+    document.getElementById('confirm-modal').classList.remove('hidden');
+    document.getElementById('confirm-modal').classList.add('flex');
+
+    document.getElementById('confirm-seat').value = '';
+    document.getElementById('confirm-pickup').value = '';
+    document.getElementById('confirm-remark').value = '';
+
+    const box = document.getElementById('confirm-order-items');
+    box.innerHTML = '';
+    cart.forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'flex justify-between';
+      row.innerHTML = `
+        <span>${item.drink_name}</span>
+        <span class="text-ocean-600">${item.sugar} / ${item.ice}</span>
+      `;
+      box.appendChild(row);
+    });
+
+    updateConfirmBtn();
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirm-modal').classList.add('hidden');
+    document.getElementById('confirm-modal').classList.remove('flex');
+  }
+
+  function updateConfirmBtn() {
+    const seat = document.getElementById('confirm-seat').value.trim();
+    const pickup = document.getElementById('confirm-pickup').value.trim();
+    const btn = document.getElementById('confirm-submit-btn');
+
+    if (seat && pickup) {
+      btn.className = 'btn-primary w-full text-white rounded-xl py-3 font-medium';
+      btn.textContent = `提交订单 · 共 ${cart.length} 杯`;
+      btn.disabled = false;
+    } else {
+      btn.className = 'w-full text-white rounded-xl py-3 font-medium bg-gray-300 cursor-not-allowed';
+      btn.textContent = '请填写取单名称和取单时间';
+      btn.disabled = true;
+    }
+  }
+
+  document.addEventListener('input', (e) => {
+    if (e.target.id === 'confirm-seat' || e.target.id === 'confirm-pickup') {
+      updateConfirmBtn();
+    }
+  });
+
+  async function submitCartOrders() {
+    const seat = document.getElementById('confirm-seat').value.trim();
+    const pickup = document.getElementById('confirm-pickup').value.trim();
+    const remark = document.getElementById('confirm-remark').value.trim();
+
+    if (!seat || !pickup) return showToast('请填写取单名称和取单时间', 'error');
+    if (cart.length === 0) return showToast('购物车是空的', 'error');
+    if (!isCashierMode && cart.length > userCups) return showToast(`剩余杯数不够！当前剩余 ${userCups} 杯，需要 ${cart.length} 杯`, 'error');
+
+    const code = isCashierMode ? '前台' : (redeemedCodes[redeemedCodes.length - 1] || '未知');
+    const orderType = isCashierMode ? '前台' : '线上';
+    const todayCount = await getTodayOrderCount();
+    const now = new Date().toISOString();
+
+    const orders = cart.map((item, i) => ({
+      order_no: formatOrderNo(todayCount + i + 1),
+      drink_name: item.drink_name,
+      sugar: item.sugar,
+      ice: item.ice,
+      seat: seat,
+      pickup_time: pickup,
+      remark: remark,
+      code: code,
+      order_type: orderType,
+      status: 'pending'
+    }));
+
+    const { error } = await db.from('orders').insert(orders);
+    if (error) return showToast('下单失败：' + error.message, 'error');
+
+    if (!isCashierMode) {
+      userCups -= cart.length;
+      localStorage.setItem('user_cups', userCups);
+    }
+    cart = [];
+    localStorage.setItem('cart', JSON.stringify(cart));
+
+    updateCupsDisplay();
+    updateCartBadge();
+    closeConfirm();
+    await loadOrders();
+    showToast(`下单成功！共 ${orders.length} 杯`, 'success');
+  }
+
+  // ========== 订单管理 ==========
+  async function loadOrders() {
+    if (!db) return;
+    const { data, error } = await db.from('orders').select('*').order('created_at', { ascending: false });
+    if (error) { showDbError('订单表加载失败：' + error.message); return; }
+
+    const list = document.getElementById('orders-list');
+    list.innerHTML = '';
+
+    const total = data.length;
+    const pending = data.filter(o => o.status === 'pending').length;
+    const done = data.filter(o => o.status === 'done').length;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-pending').textContent = pending;
+    document.getElementById('stat-done').textContent = done;
+
+    const { data: codesData } = await db.from('codes').select('*').eq('status', 'used');
+    document.getElementById('stat-codes-used').textContent = codesData?.length || 0;
+
+    data.forEach(order => {
+      const card = document.createElement('div');
+      card.className = 'border border-ocean-100 rounded-2xl p-4 hover:border-ocean-300 transition-colors';
+      const typeTag = order.order_type === '前台'
+        ? '<span class="badge bg-blue-50 text-blue-700">前台</span>'
+        : '<span class="badge bg-ocean-50 text-ocean-700">线上</span>';
+      card.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+          <div class="flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h4 class="text-ocean-900 font-bold text-lg">${order.drink_name}</h4>
+              <span class="badge ${order.status === 'pending' ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'}">
+                ${order.status === 'pending' ? '待制作' : '已完成'}
+              </span>
+              ${typeTag}
+            </div>
+            <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-sm text-ocean-700">
+              <p class="font-mono text-xs text-ocean-500">单号：${order.order_no || '-'}</p>
+              <p>规格：<span class="font-medium">${order.sugar} / ${order.ice}</span></p>
+              <p>取单名称：<span class="font-medium">${order.seat}</span></p>
+              <p>期望取单：<span class="font-medium">${order.pickup_time}</span></p>
+              <p>备注：<span>${order.remark || '无'}</span></p>
+              <p>激活码：<span class="font-mono text-ocean-800">${order.code}</span></p>
+              <p class="text-ocean-500 text-xs">下单时间：${new Date(order.created_at).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-2 sm:flex-col sm:w-auto">
+            <button onclick="printReceipt('${order.id}')" class="btn-ghost text-ocean-700 text-xs px-3 py-2 rounded-xl">打印小票</button>
+            <button onclick="printSticker('${order.id}')" class="btn-ghost text-ocean-700 text-xs px-3 py-2 rounded-xl">打印杯贴</button>
+            <button onclick="toggleOrderStatus('${order.id}', '${order.status}')" class="text-xs px-3 py-2 rounded-xl ${order.status === 'pending' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}">
+              ${order.status === 'pending' ? '标记完成' : '重置待制作'}
+            </button>
+          </div>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  }
+
+  async function toggleOrderStatus(id, currentStatus) {
+    const newStatus = currentStatus === 'pending' ? 'done' : 'pending';
+    await db.from('orders').update({ status: newStatus }).eq('id', id);
+    loadOrders();
+  }
+
+  // ========== 打印功能 ==========
+  async function getOrderById(id) {
+    const { data } = await db.from('orders').select('*').eq('id', id).single();
+    return data;
+  }
+
+  async function printReceipt(orderId) {
+    const order = await getOrderById(orderId);
+    if (!order) return showToast('订单未找到', 'error');
+    document.getElementById('print-drink-name').textContent = order.drink_name || '饮品';
+    document.getElementById('print-order-no').textContent = order.order_no || '-';
+    document.getElementById('print-spec').textContent = `${order.sugar || ''} / ${order.ice || ''}`;
+    document.getElementById('print-order-time').textContent = new Date(order.created_at).toLocaleString('zh-CN');
+    document.getElementById('print-pickup-time').textContent = order.pickup_time || '尽快';
+    document.getElementById('print-seat').textContent = order.seat || '未填写';
+    document.getElementById('print-remark').textContent = order.remark || '无';
+    document.getElementById('print-code').textContent = order.code || '无';
+
+    document.getElementById('receipt-template').style.display = 'block';
+    document.getElementById('sticker-template').style.display = 'none';
+    setTimeout(() => window.print(), 100);
+  }
+
+  async function printSticker(orderId) {
+    const order = await getOrderById(orderId);
+    if (!order) return showToast('订单未找到', 'error');
+    document.getElementById('sticker-drink-name').textContent = order.drink_name || '饮品';
+    document.getElementById('sticker-spec').textContent = `${order.sugar || ''} · ${order.ice || ''}`;
+    document.getElementById('sticker-seat').textContent = order.seat || '';
+    document.getElementById('sticker-pickup').textContent = order.pickup_time || '';
+    document.getElementById('sticker-remark').textContent = order.remark || '';
+    document.getElementById('sticker-code').textContent = order.code || '';
+
+    document.getElementById('sticker-template').style.display = 'block';
+    document.getElementById('receipt-template').style.display = 'none';
+    setTimeout(() => window.print(), 100);
+  }
+
+  // ========== 菜单管理 ==========
+  function openDrinkEditModal() {
+    document.getElementById('drink-edit-title').textContent = '新增饮品';
+    document.getElementById('edit-drink-id').value = '';
+    document.getElementById('edit-drink-name').value = '';
+    document.getElementById('edit-drink-category').value = '果茶';
+    document.getElementById('edit-sugar-options').value = '无糖,三分糖,五分糖,七分糖,全糖';
+    document.getElementById('edit-ice-enabled').checked = true;
+    document.getElementById('edit-ice-options').value = '常温,少冰,正常冰';
+    document.getElementById('edit-drink-desc').value = '';
+    document.getElementById('image-preview').classList.add('hidden');
+    document.getElementById('edit-drink-image').value = '';
+
+    document.getElementById('drink-edit-modal').classList.remove('hidden');
+    document.getElementById('drink-edit-modal').classList.add('flex');
+  }
+
+  async function editDrink(id) {
+    const { data } = await db.from('drinks').select('*').eq('id', id).single();
+    document.getElementById('drink-edit-title').textContent = '编辑饮品';
+    document.getElementById('edit-drink-id').value = data.id;
+    document.getElementById('edit-drink-name').value = data.name;
+    document.getElementById('edit-drink-category').value = data.category;
+    document.getElementById('edit-sugar-options').value = data.sugar_options.join(',');
+    document.getElementById('edit-ice-enabled').checked = data.ice_enabled;
+    document.getElementById('edit-ice-options').value = data.ice_options.join(',');
+    document.getElementById('edit-drink-desc').value = data.description || '';
+
+    if (data.image) {
+      document.getElementById('preview-img').src = data.image;
+      document.getElementById('image-preview').classList.remove('hidden');
+    } else {
+      document.getElementById('image-preview').classList.add('hidden');
+    }
+
+    document.getElementById('drink-edit-modal').classList.remove('hidden');
+    document.getElementById('drink-edit-modal').classList.add('flex');
+  }
+
+  function closeDrinkEditModal() {
+    document.getElementById('drink-edit-modal').classList.add('hidden');
+    document.getElementById('drink-edit-modal').classList.remove('flex');
+  }
+
+  function initImagePreview() {
+    document.getElementById('edit-drink-image').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('image-preview').classList.remove('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function saveDrink() {
+    const id = document.getElementById('edit-drink-id').value;
+    const name = document.getElementById('edit-drink-name').value.trim();
+    const category = document.getElementById('edit-drink-category').value;
+    const sugarOptions = document.getElementById('edit-sugar-options').value.split(',').map(s => s.trim()).filter(s => s);
+    const iceEnabled = document.getElementById('edit-ice-enabled').checked;
+    const iceOptions = document.getElementById('edit-ice-options').value.split(',').map(s => s.trim()).filter(s => s);
+    const desc = document.getElementById('edit-drink-desc').value.trim();
+    const imageFile = document.getElementById('edit-drink-image').files[0];
+
+    if (!name) return alert('请输入饮品名称');
+
+    let imageUrl = null;
+
+    if (imageFile) {
+      const ext = (imageFile.name.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i) || ['.jpg'])[0].toLowerCase();
+      const rand = Math.random().toString(36).slice(2, 8);
+      const fileName = `${Date.now()}_${rand}${ext}`;
+      const { error } = await db.storage.from('drinks-images').upload(fileName, imageFile);
+      if (error) return alert('图片上传失败：' + error.message);
+      const { data } = db.storage.from('drinks-images').getPublicUrl(fileName);
+      imageUrl = data.publicUrl;
+    }
+
+    const drinkData = {
+      name: name,
+      category: category,
+      sugar_options: sugarOptions,
+      ice_enabled: iceEnabled,
+      ice_options: iceOptions,
+      description: desc,
+      is_active: true
+    };
+
+    if (imageUrl) drinkData.image = imageUrl;
+
+    if (id) {
+      await db.from('drinks').update(drinkData).eq('id', id);
+    } else {
+      await db.from('drinks').insert(drinkData);
+    }
+
+    closeDrinkEditModal();
+    loadDrinks();
+    alert('保存成功');
+  }
+
+  async function deleteDrink(id) {
+    if (!confirm('确定删除该饮品吗？')) return;
+    await db.from('drinks').delete().eq('id', id);
+    loadDrinks();
+    showToast('已删除', 'success');
+  }
+
+  async function toggleDrinkActive(id, currentlyOff) {
+    await db.from('drinks').update({ is_active: !currentlyOff }).eq('id', id);
+    loadDrinks();
+    showToast(currentlyOff ? '已上架' : '已下架', 'success');
+  }
+
+  // ========== 管理员后台 ==========
+  function openAdminLogin() {
+    document.getElementById('admin-login-modal').classList.remove('hidden');
+    document.getElementById('admin-login-modal').classList.add('flex');
+  }
+
+  function closeAdminLogin() {
+    document.getElementById('admin-login-modal').classList.add('hidden');
+    document.getElementById('admin-login-modal').classList.remove('flex');
+  }
+
+  function adminLogin() {
+    const account = document.getElementById('admin-account').value.trim();
+    const pwd = document.getElementById('admin-pwd').value.trim();
+
+    if (account === ADMIN_ACCOUNT && pwd === ADMIN_PASSWORD) {
+      isAdmin = true;
+      sessionStorage.setItem('adminLoggedIn', '1');
+      closeAdminLogin();
+      document.getElementById('user-app').classList.add('hidden');
+      document.getElementById('admin-app').classList.remove('hidden');
+      loadOrders();
+      loadCodes();
+    } else {
+      alert('账号或密码错误');
+    }
+  }
+
+  function adminLogout() {
+    isAdmin = false;
+    isCashierMode = false;
+    sessionStorage.removeItem('adminLoggedIn');
+    // 关掉所有弹窗
+    ['drink-edit-modal','batch-code-modal','qrcode-modal','admin-login-modal','code-modal','cart-modal','confirm-modal','scan-modal','drink-modal'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+    });
+    document.getElementById('admin-app').classList.add('hidden');
+    document.getElementById('user-app').classList.remove('hidden');
+    const exitBtn = document.getElementById('exit-cashier-btn');
+    if (exitBtn) exitBtn.remove();
+  }
+
+  // ========== 收银模式 ==========
+  function enterCashierMode() {
+    isCashierMode = true;
+    document.getElementById('admin-app').classList.add('hidden');
+    document.getElementById('user-app').classList.remove('hidden');
+    // 加退出收银按钮
+    let exitBtn = document.getElementById('exit-cashier-btn');
+    if (!exitBtn) {
+      exitBtn = document.createElement('button');
+      exitBtn.id = 'exit-cashier-btn';
+      exitBtn.className = 'bg-red-500 text-white text-sm px-4 py-2 rounded-xl';
+      exitBtn.textContent = '✕ 退出收银';
+      exitBtn.onclick = exitCashierMode;
+      document.querySelector('header .flex.items-center.gap-2').appendChild(exitBtn);
+    }
+    showToast('已进入收银模式，下单不扣额度', 'success');
+    loadDrinks();
+  }
+
+  function exitCashierMode() {
+    isCashierMode = false;
+    document.getElementById('user-app').classList.add('hidden');
+    document.getElementById('admin-app').classList.remove('hidden');
+    const exitBtn = document.getElementById('exit-cashier-btn');
+    if (exitBtn) exitBtn.remove();
+    loadOrders();
+  }
+
+  // 收银模式下核销激活码
+  function openRedeemScan() {
+    document.getElementById('scan-modal').classList.remove('hidden');
+    document.getElementById('scan-modal').classList.add('flex');
+    document.getElementById('scan-status').textContent = '对准要核销的激活码二维码…';
+    html5QrCode = new Html5Qrcode("reader");
+    html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 220, height: 220 } },
+      async (decodedText) => {
+        if (html5QrCode) {
+          await html5QrCode.stop();
+          html5QrCode = null;
+        }
+        closeScanModal();
+        // 直接核销该激活码
+        redeemCode(decodedText);
+      },
+      () => {}
+    ).catch(err => {
+      document.getElementById('scan-status').textContent = '摄像头启动失败，请检查权限。';
+    });
+  }
+
+  function initAdminTabs() {
+    document.querySelectorAll('.admin-tab').forEach(tab => {
+      tab.onclick = () => {
+        document.querySelectorAll('.admin-tab').forEach(t => {
+          t.classList.remove('tab-active');
+          t.classList.add('btn-ghost');
+        });
+        tab.classList.add('tab-active');
+        tab.classList.remove('btn-ghost');
+
+        document.querySelectorAll('.admin-content').forEach(c => c.classList.add('hidden'));
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.remove('hidden');
+      };
+    });
+  }
+</script>
+</body>
+</html>
