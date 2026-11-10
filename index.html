@@ -539,12 +539,7 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
       </div>
 
       <div>
-        <label class="text-sm text-ocean-700 font-medium">期望取单时间</label>
-        <input id="confirm-pickup" type="text" placeholder="例：午休12:30" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm" />
-      </div>
-
-      <div>
-        <label class="text-sm text-ocean-700 font-medium">备注</label>
+        <label class="text-sm text-ocean-700 font-medium">备注（选填）</label>
         <textarea id="confirm-remark" rows="2" placeholder="例如：不要珍珠、少糖等" class="input-field w-full rounded-xl px-4 py-2.5 mt-1 text-sm"></textarea>
       </div>
 
@@ -557,6 +552,28 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
     <div class="p-5 border-t border-ocean-100 bg-ocean-50/40">
       <button id="confirm-submit-btn" onclick="submitCartOrders()" class="btn-primary w-full text-white rounded-xl py-3 font-medium">
         提交订单
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 下单成功页 ============ -->
+<div id="success-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 modal-mask">
+  <div class="bg-white rounded-3xl w-full max-w-md overflow-hidden slide-up shadow-card">
+    <div class="p-6 text-center bg-gradient-to-b from-ocean-50 to-white">
+      <div class="w-16 h-16 mx-auto rounded-full bg-green-100 flex items-center justify-center mb-3 pop-in">
+        <span class="text-3xl">✓</span>
+      </div>
+      <h3 class="text-ocean-900 font-bold text-xl">下单成功！</h3>
+      <p class="text-ocean-500 text-sm mt-1">请留意取单叫号</p>
+    </div>
+    <div class="p-6">
+      <div id="success-order-info" class="border border-dashed border-ocean-200 rounded-2xl p-4 space-y-2 text-sm"></div>
+      <div class="mt-4 flex justify-center">
+        <span id="success-status" class="badge bg-orange-50 text-orange-700 text-sm px-4 py-2">制作中</span>
+      </div>
+      <button onclick="closeSuccessModal()" class="btn-primary w-full mt-5 text-white rounded-xl py-3 font-medium">
+        返回主页
       </button>
     </div>
   </div>
@@ -771,9 +788,39 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
         loadDrinks();
         loadOrders();
         loadCodes();
+        setupRealtime();
       } else {
         setTimeout(loadWhenReady, 300);
       }
+    }
+
+    // ========== 实时自动更新 ==========
+    function setupRealtime() {
+      // 实时订阅
+      db.channel('orders-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+          loadOrders();
+          loadDrinks();
+        })
+        .subscribe();
+
+      db.channel('drinks-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'drinks' }, () => {
+          loadDrinks();
+        })
+        .subscribe();
+
+      db.channel('codes-changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'codes' }, () => {
+          loadCodes();
+        })
+        .subscribe();
+
+      // 兜底：每 8 秒自动刷新一次
+      setInterval(() => {
+        loadOrders();
+        if (isAdmin) loadCodes();
+      }, 8000);
     }
     loadWhenReady();
   };
@@ -949,7 +996,7 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
       const tr = document.createElement('tr');
       tr.className = "border-b border-ocean-50";
       tr.innerHTML = `
-        <td class="py-3 pr-4 font-mono text-ocean-800">${item.code}</td>
+        <td class="py-3 pr-4"><span onclick="copyCode('${item.code}')" class="font-mono text-ocean-800 cursor-pointer hover:text-ocean-500 hover:underline" title="点击复制">${item.code}</span></td>
         <td class="py-3 pr-4">${item.cups}</td>
         <td class="py-3 pr-4">
           <span class="badge ${item.status === 'unused' ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-600'}">
@@ -960,7 +1007,7 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
           ${item.used_at ? new Date(item.used_at).toLocaleString() : '-'}
         </td>
         <td class="py-3">
-          <button onclick="showCodeQrcode('${item.code}')" class="text-xs px-3 py-1.5 rounded-xl bg-ocean-50 text-ocean-700">生成二维码</button>
+          <button onclick="showCodeQrcode('${item.code}')" class="text-xs px-3 py-1.5 rounded-xl bg-ocean-50 text-ocean-700">二维码</button>
         </td>
       `;
       tbody.appendChild(tr);
@@ -1214,7 +1261,6 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
     document.getElementById('confirm-modal').classList.add('flex');
 
     document.getElementById('confirm-seat').value = '';
-    document.getElementById('confirm-pickup').value = '';
     document.getElementById('confirm-remark').value = '';
 
     const box = document.getElementById('confirm-order-items');
@@ -1239,32 +1285,30 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
 
   function updateConfirmBtn() {
     const seat = document.getElementById('confirm-seat').value.trim();
-    const pickup = document.getElementById('confirm-pickup').value.trim();
     const btn = document.getElementById('confirm-submit-btn');
 
-    if (seat && pickup) {
+    if (seat) {
       btn.className = 'btn-primary w-full text-white rounded-xl py-3 font-medium';
       btn.textContent = `提交订单 · 共 ${cart.length} 杯`;
       btn.disabled = false;
     } else {
       btn.className = 'w-full text-white rounded-xl py-3 font-medium bg-gray-300 cursor-not-allowed';
-      btn.textContent = '请填写取单名称和取单时间';
+      btn.textContent = '请填写取单名称';
       btn.disabled = true;
     }
   }
 
   document.addEventListener('input', (e) => {
-    if (e.target.id === 'confirm-seat' || e.target.id === 'confirm-pickup') {
+    if (e.target.id === 'confirm-seat') {
       updateConfirmBtn();
     }
   });
 
   async function submitCartOrders() {
     const seat = document.getElementById('confirm-seat').value.trim();
-    const pickup = document.getElementById('confirm-pickup').value.trim();
     const remark = document.getElementById('confirm-remark').value.trim();
 
-    if (!seat || !pickup) return showToast('请填写取单名称和取单时间', 'error');
+    if (!seat) return showToast('请填写取单名称', 'error');
     if (cart.length === 0) return showToast('购物车是空的', 'error');
     if (!isCashierMode && cart.length > userCups) return showToast(`剩余杯数不够！当前剩余 ${userCups} 杯，需要 ${cart.length} 杯`, 'error');
 
@@ -1279,7 +1323,7 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
       sugar: item.sugar,
       ice: item.ice,
       seat: seat,
-      pickup_time: pickup,
+      pickup_time: '尽快',
       remark: remark,
       code: code,
       order_type: orderType,
@@ -1300,7 +1344,45 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
     updateCartBadge();
     closeConfirm();
     await loadOrders();
-    showToast(`下单成功！共 ${orders.length} 杯`, 'success');
+    showSuccessModal(orders);
+  }
+
+  async function showSuccessModal(orders) {
+    // 查待制作订单数（不含本次的）
+    const { count } = await db.from('orders').select('id', { count: 'exact', head: true }).eq('status', 'pending');
+    const ahead = Math.max(0, (count || 0) - orders.length);
+    const info = document.getElementById('success-order-info');
+    info.innerHTML = orders.map(o => `
+      <div class="flex justify-between">
+        <span class="text-ocean-500">订单号</span>
+        <span class="font-mono font-medium">${o.order_no}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ocean-500">饮品</span>
+        <span class="font-bold">${o.drink_name}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ocean-500">规格</span>
+        <span>${o.sugar} / ${o.ice}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ocean-500">取单名称</span>
+        <span>${o.seat}</span>
+      </div>
+      <div class="flex justify-between">
+        <span class="text-ocean-500">前面还有</span>
+        <span class="font-bold text-orange-600">${ahead} 杯</span>
+      </div>
+    `).join('<hr class="border-ocean-100 my-2">');
+    document.getElementById('success-status').textContent = '制作中';
+    document.getElementById('success-status').className = 'badge bg-orange-50 text-orange-700 text-sm px-4 py-2';
+    document.getElementById('success-modal').classList.remove('hidden');
+    document.getElementById('success-modal').classList.add('flex');
+  }
+
+  function closeSuccessModal() {
+    document.getElementById('success-modal').classList.add('hidden');
+    document.getElementById('success-modal').classList.remove('flex');
   }
 
   // ========== 订单管理 ==========
@@ -1518,9 +1600,25 @@ loadScript('https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js'
   }
 
   async function toggleDrinkActive(id, currentlyOff) {
-    await db.from('drinks').update({ is_active: !currentlyOff }).eq('id', id);
+    const { error } = await db.from('drinks').update({ is_active: !currentlyOff }).eq('id', id);
+    if (error) return showToast('操作失败：' + error.message, 'error');
     loadDrinks();
     showToast(currentlyOff ? '已上架' : '已下架', 'success');
+  }
+
+  function copyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+      showToast('已复制：' + code, 'success');
+    }).catch(() => {
+      // 降级方案
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast('已复制：' + code, 'success');
+    });
   }
 
   // ========== 管理员后台 ==========
